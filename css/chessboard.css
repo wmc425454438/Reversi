@@ -1,0 +1,25 @@
+table {
+    border-spacing: 2px;
+    margin: auto;
+}
+
+td {
+    width: 70px;
+    height: 70px;
+    border: 1px solid black;
+}
+
+.chess {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    margin: auto;
+}
+
+.chess_orange {
+    background-color: #f39801;
+}
+
+.chess_blue {
+    background-color: #0267b5;
+}

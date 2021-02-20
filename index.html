@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>翻转棋</title>
+    <link rel="stylesheet" href="css/chessboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+</head>
+<body>
+    <div id="app">
+        <table>
+            <tbody>
+                <!-- <tr v-for="r in tableRowNum">
+                    <td v-for="c in tableColNum">
+                        <div class="chess chess_orange"></div>
+                    </td>
+                </tr> -->
+                <tr v-for="(col, colIndex) in tableArr" :index="colIndex">
+                    <td v-for="(row, rowIndex) in col" :index="rowIndex" v-on:click="moveChess(colIndex, rowIndex)">
+                        <div v-if="row == 1" class="chess chess_orange"></div>
+                        <div v-if="row == 2" class="chess chess_blue"></div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+<script>
+    // 点击下子
+    // 上传github （今天）
+    // 计算可下子区域
+    // 翻转棋子
+    // 增加翻转特效
+    // 增加初始血量和基础攻击力棋子
+    // 血量为0判断失败
+    // 增加特殊效果棋子
+    // 增加正营
+    // 增加棋子特效
+    function createArray(m,n){
+      return new Array(m).fill('').map(d=>new Array(n).fill(0))
+    }
+    var app = new Vue({
+        el: "#app",
+        data: {
+            tableArr: null,
+            tableColNum: 6,
+            tableRowNum: 6,
+            lastMove: 1,
+            chess_obj: {
+                chess: true,
+                chess_orange: false, 
+                chess_blue: true,
+            },
+        },
+        created: function() {
+            this.tableArr = createArray(6,6);
+            this.tableArr[2][2] = 1;
+            this.tableArr[2][3] = 2;
+            this.tableArr[3][2] = 2;
+            this.tableArr[3][3] = 1;
+            console.log(this.tableArr);
+        },
+        methods: {
+            moveChess: function(col, row) {
+                let value = this.tableArr[col][row];
+                if(!value && this.lastMove == 1) {
+                    this.$set(this.tableArr[col], row, 2);
+                    this.lastMove = 2;
+                } else if(!value && this.lastMove == 2) {
+                    this.$set(this.tableArr[col], row, 1);
+                    this.lastMove = 1;
+                }
+            },
+        },
+    });
+    
+</script>
+</html>
