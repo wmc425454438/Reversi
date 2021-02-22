@@ -10,17 +10,14 @@
 </head>
 <body>
     <div id="app">
+        <div v-on:click="undoClick" v-if="undoStack.length > 1">悔棋</div>
         <table>
             <tbody>
-                <!-- <tr v-for="r in tableRowNum">
-                    <td v-for="c in tableColNum">
-                        <div class="chess chess_orange"></div>
-                    </td>
-                </tr> -->
-                <tr v-for="(col, colIndex) in tableArr" :index="colIndex">
-                    <td v-for="(row, rowIndex) in col" :index="rowIndex" v-on:click="moveChess(colIndex, rowIndex)">
-                        <div v-if="row == 1" class="chess chess_orange"></div>
-                        <div v-if="row == 2" class="chess chess_blue"></div>
+                <tr v-for="(row, rowIndex) in tableArr" :index="rowIndex">
+                    <td v-for="(col, colIndex) in row" :index="colIndex" v-on:click="moveChess(rowIndex, colIndex)">
+                        <div v-if="col == 1" class="chess chess_orange"></div>
+                        <div v-if="col == 2" class="chess chess_blue"></div>
+                        <div v-if="col == 3" class="chess chess_movable"></div>
                     </td>
                 </tr>
             </tbody>
@@ -31,13 +28,15 @@
     // 点击下子
     // 上传github （今天）
     // 计算可下子区域
-    // 翻转棋子
+    // 计算翻转棋子(today)
+    // 支持悔棋，方便调整状态，每一步推入栈
     // 增加翻转特效
     // 增加初始血量和基础攻击力棋子
     // 血量为0判断失败
     // 增加特殊效果棋子
     // 增加正营
     // 增加棋子特效
+    // 1橙色 2蓝色 3可以落子的位置
     function createArray(m,n){
       return new Array(m).fill('').map(d=>new Array(n).fill(0))
     }
@@ -53,27 +52,316 @@
                 chess_orange: false, 
                 chess_blue: true,
             },
+            undoStack: [],
         },
         created: function() {
-            this.tableArr = createArray(6,6);
-            this.tableArr[2][2] = 1;
-            this.tableArr[2][3] = 2;
-            this.tableArr[3][2] = 2;
-            this.tableArr[3][3] = 1;
-            console.log(this.tableArr);
+            let tableArr = createArray(6,6);
+            tableArr[2][2] = 1;
+            tableArr[2][3] = 2;
+            tableArr[3][2] = 2;
+            tableArr[3][3] = 1;
+            console.log(tableArr);
+            this.tableArr = tableArr;
+            this.calculateMovableArea(1);
+            this.undoStack.push(JSON.parse(JSON.stringify(this.tableArr)));
         },
         methods: {
-            moveChess: function(col, row) {
-                let value = this.tableArr[col][row];
-                if(!value && this.lastMove == 1) {
-                    this.$set(this.tableArr[col], row, 2);
-                    this.lastMove = 2;
-                } else if(!value && this.lastMove == 2) {
-                    this.$set(this.tableArr[col], row, 1);
-                    this.lastMove = 1;
+            undoClick: function() {
+                let nowStep = this.undoStack.pop();
+                let stackLen = this.undoStack.length;
+                if (this.undoStack.length >= 1) {
+                    this.tableArr = JSON.parse(JSON.stringify(this.undoStack[stackLen-1]));
+                }
+                this.lastMove = this.lastMove === 1 ? 2 : 1;
+                this.$forceUpdate();
+            },
+            moveChess: function(row, col) {
+                let value = this.tableArr[row][col];
+                let nowMoveType = this.lastMove;
+                if (value === 3) {
+                    if(this.lastMove == 1) {
+                        this.$set(this.tableArr[row], col, 1);
+                        this.lastMove = 2;
+                    } else if(this.lastMove == 2) {
+                        this.$set(this.tableArr[row], col, 2);
+                        this.lastMove = 1;
+                    }
+                    this.reversiChess(row, col, nowMoveType);
+                    this.calculateMovableArea(this.lastMove);
+                }
+                this.undoStack.push(JSON.parse(JSON.stringify(this.tableArr)));
+            },
+            calculateMovableArea: function(nowMoveType) {
+                let self = this;
+                // 先清除之前的可下子区域
+                self.clearMovableArea();
+                // 现在的下子的是1还是2
+                // 每一颗棋子的上下左右的尽头不是自己
+                // 每一颗的斜边尽头不是自己
+                // 满足8个方向的上述条件可下子
+                // 先遍历每个棋子的位置，找到棋子相同类型棋子，再寻找可以落子的位置。
+                let tableArr = this.tableArr;
+                tableArr.map((row, rowIndex) => {
+                    row.map((chess, colIndex) => {
+                        if(chess === nowMoveType) {
+                            // 找到当前已下的相同子
+                            self.findCouldMoveArea(rowIndex, colIndex, nowMoveType);
+                            console.log(rowIndex, colIndex);
+                        }
+                        return chess;
+                    });
+                    // tableArr[rowIndex][colIndex] = 3;
+                    return row;
+                });
+
+            },
+            clearMovableArea: function () {
+                let self = this;
+                let tableArr = self.tableArr;
+                tableArr.map((row, rowIndex) => {
+                    row.map((chess, colIndex) => {
+                        if(chess === 3) {
+                            self.$set(self.tableArr[rowIndex], colIndex, 0);
+                        }
+                        return chess;
+                    });
+                    return row;
+                });
+            },
+            findCouldMoveArea: function(row, col, chessType) {
+                let self = this;
+                let tableArr = self.tableArr;
+                // 边界
+                let colLen = self.tableColNum;
+                let rowLen = self.tableRowNum;
+
+                let enemyType = chessType === 1 ? 2 : 1;
+             
+                // 上下左右
+                /**
+                 * 向上找
+                 * 是自己的子或直接false
+                 * 不是自己的子继续向上找
+                 * 是空位置返回true且不是临近的子且临界子不能为空
+                 * 是边界返回false
+                 */
+                // col不变 row-1 判断边界情况>0
+                // 上下左右判断方法一样，只是搜索规则不一样
+                for(let i = row-1; i >= 0; i--) {
+                    if(tableArr[i][col] === chessType || tableArr[row-1][col] === 0 || tableArr[row-1][col] === 3) {
+                        break;
+                    } else if(tableArr[i][col] === enemyType) {
+                        continue;
+                    } else {
+                        tableArr[i][col] = 3;
+                        break;
+                    }
+                }
+                for(let i = row+1; i <= rowLen-1; i++) {
+                    if(tableArr[i][col] === chessType || tableArr[row+1][col] === 0 || tableArr[row+1][col] === 3) {
+                        break;
+                    } else if(tableArr[i][col] === enemyType) {
+                        continue;
+                    } else {
+                        tableArr[i][col] = 3;
+                        break;
+                    }
+                }
+                // 左
+                for(let j = col-1; j >= 0; j--) {
+                    if(tableArr[row][j] === chessType || tableArr[row][col-1] === 0 || tableArr[row][col-1] === 3) {
+                        break;
+                    } else if(tableArr[row][j] === enemyType) {
+                        continue;
+                    } else {
+                        tableArr[row][j] = 3;
+                        break;
+                    }
+                }
+                for(let j = col+1; j <= colLen-1; j++) {
+                    if(tableArr[row][j] === chessType || tableArr[row][col+1] === 0 || tableArr[row][col+1] === 3) {
+                        break;
+                    } else if(tableArr[row][j] === enemyType) {
+                        continue;
+                    } else {
+                        tableArr[row][j] = 3;
+                        break;
+                    }
+                }
+                // 左上角
+                for(let i = row-1, j = col-1; i >= 0 && j >= 0; i--, j--) {
+                    if(tableArr[i][j] === chessType || tableArr[row-1][col-1] === 0 || tableArr[row-1][col-1] === 3) {
+                        break;
+                    } else if(tableArr[i][j] === enemyType) {
+                        continue;
+                    } else {
+                        tableArr[i][j] = 3;
+                        break;
+                    }
+                }
+                // 右下角
+                for(let i = row+1, j = col+1; i <= rowLen-1 && j <= colLen-1; i++, j++) {
+                    if(tableArr[i][j] === chessType || tableArr[row+1][col+1] === 0 || tableArr[row+1][col+1] === 3) {
+                        break;
+                    } else if(tableArr[i][j] === enemyType) {
+                        continue;
+                    } else {
+                        tableArr[i][j] = 3;
+                        break;
+                    }
+                }
+                // 左下角
+                for(let i = row+1, j = col-1; i <= rowLen-1 && j >= 0; i++, j--) {
+                    if(tableArr[i][j] === chessType || tableArr[row+1][col-1] === 0 || tableArr[row+1][col-1] === 3) {
+                        break;
+                    } else if(tableArr[i][j] === enemyType) {
+                        continue;
+                    } else {
+                        tableArr[i][j] = 3;
+                        break;
+                    }
+                }
+                // 右上角
+                for(let i = row-1, j = col+1; i >= 0 && j <= colLen-1; i--, j++) {
+                    if(tableArr[i][j] === chessType || tableArr[row-1][col+1] === 0 || tableArr[row-1][col+1] === 3) {
+                        break;
+                    } else if(tableArr[i][j] === enemyType) {
+                        continue;
+                    } else {
+                        tableArr[i][j] = 3;
+                        break;
+                    }
+                }
+
+                this.$forceUpdate();
+            },
+            reversiChess: function(row, col, chessType) {
+                // 当前下子的位置和当前下子的类型
+                // 寻找当前下子类型相同的上下左右，中间有不同类型的子就翻转
+                // 遇到空直接返回false
+                // 为其他类型的子继续查找
+                // 为相同类型的子就跳出，且翻转同一行或者同一列的子
+                // 上
+                let self = this;
+                let tableArr = self.tableArr;
+                // 边界
+                let colLen = self.tableColNum;
+                let rowLen = self.tableRowNum;
+
+                let enemyType = chessType === 1 ? 2 : 1;
+             
+                // 上下左右
+                /**
+                 * 向上找
+                 * 不是自己的子且连续则继续向上找
+                 * 遇到是自己的子停止
+                 * 是空位置直接break
+                 * 是边界直接break
+                 */
+                // col不变 row-1 判断边界情况>0
+                // 上下左右判断方法一样，只是搜索规则不一样
+                for(let i = row-1; i >= 0; i--) {
+                    if(tableArr[i][col] === chessType && i !== row-1) {
+                        // 寻找有效值和当前值的所有纵向的子，进行值的翻转
+                        for(let _i = row-1; _i >= i; _i--) {
+                            self.$set(self.tableArr[_i], col, chessType);
+                        }
+                        break;
+                    } else if (tableArr[i][col] === enemyType) {
+                        continue;
+                    } else {
+                        break;
+                    }
+                }
+                for(let i = row+1; i <= rowLen-1; i++) {
+                    if(tableArr[i][col] === chessType && i !== row+1) {
+                        for(let _i = row+1; _i <= i; _i++) {
+                            self.$set(self.tableArr[_i], col, chessType);
+                        }
+                        break;
+                    } else if (tableArr[i][col] === enemyType) {
+                        continue;
+                    } else {
+                        break;
+                    }
+                }
+                for(let j = col-1; j >= 0; j--) {
+                    if(tableArr[row][j] === chessType && j !== col-1) {
+                        for(let _j = col-1; _j >= j; _j--) {
+                            self.$set(self.tableArr[row], _j, chessType);
+                        }
+                        break;
+                    } else if (tableArr[row][j] === enemyType) {
+                        continue;
+                    } else {
+                        break;
+                    }
+                }
+                for(let j = col+1; j <= colLen-1; j++) {
+                    if(tableArr[row][j] === chessType && j !== col+1) {
+                        for(let _j = col+1; _j <= j; _j++) {
+                            self.$set(self.tableArr[row], _j, chessType);
+                        }
+                        break;
+                    } else if (tableArr[row][j] === enemyType) {
+                        continue;
+                    } else {
+                        break;
+                    }
+                }
+                for(let i = row-1, j = col-1; i >= 0 && j >= 0; i--, j--) {
+                    if(tableArr[i][j] === chessType && i !== row-1 && j !== col-1) {
+                        for(let _i = row-1, _j = col-1; _i >= i && _j >= j; _i--, _j--) {
+                            self.$set(self.tableArr[_i], _j, chessType);
+                        }
+                        break;
+                    } else if (tableArr[i][j] === enemyType) {
+                        continue;
+                    } else {
+                        break;
+                    }
+                }
+                for(let i = row+1, j = col+1; i <= rowLen-1 && j <= colLen-1; i++, j++) {
+                    if(tableArr[i][j] === chessType && i !== row+1 && j !== col+1) {
+                        for(let _i = row+1, _j = col+1; _i <= i && _j <= j; _i++, _j++) {
+                            self.$set(self.tableArr[_i], _j, chessType);
+                        }
+                        break;
+                    } else if (tableArr[i][j] === enemyType) {
+                        continue;
+                    } else {
+                        break;
+                    }
+                }
+                // 左下角
+                for(let i = row+1, j = col-1; i <= rowLen-1 && j >= 0; i++, j--) {
+                    if(tableArr[i][j] === chessType && i !== row+1 && j !== col-1) {
+                        for(let _i = row+1, _j = col-1; _i <= i && _j >= j; _i++, _j--) {
+                            self.$set(self.tableArr[_i], _j, chessType);
+                        }
+                        break;
+                    } else if (tableArr[i][j] === enemyType) {
+                        continue;
+                    } else {
+                        break;
+                    }
+                }
+                // 右上角
+                for(let i = row-1, j = col+1; i >= 0 && j <= colLen-1; i--, j++) {
+                    if(tableArr[i][j] === chessType && i !== row-1 && j !== col+1) {
+                        for(let _i = row-1, _j = col+1; _i >= i && _j <= j; _i--, _j++) {
+                            self.$set(self.tableArr[_i], _j, chessType);
+                        }
+                        break;
+                    } else if (tableArr[i][j] === enemyType) {
+                        continue;
+                    } else {
+                        break;
+                    }
                 }
             },
         },
+        
     });
     
 </script>

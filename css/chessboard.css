@@ -23,3 +23,9 @@ td {
 .chess_blue {
     background-color: #0267b5;
 }
+
+.chess_movable {
+    background-color: #888;
+    width: 20px;
+    height: 20px;
+}
