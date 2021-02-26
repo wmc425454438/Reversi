@@ -9,23 +9,46 @@ td {
     border: 1px solid black;
 }
 
-.chess {
+.element {
+    position: relative;
+    backface-visibility: hidden;
+    transform-style: preserve-3d;
+    transition: 0.3s;
     width: 56px;
     height: 56px;
-    border-radius: 50%;
     margin: auto;
 }
 
-.chess_orange {
+
+.chess {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    margin: auto;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.chess-orange {
     background-color: #f39801;
+    transform: rotateY(0deg);
 }
 
-.chess_blue {
+.chess-blue {
     background-color: #0267b5;
+    transform: rotateY(180deg);
 }
 
-.chess_movable {
+.chess-movable {
     background-color: #888;
     width: 20px;
     height: 20px;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.chess-rotate {
+    transition: transform 400ms ease-in-out, background 0ms 200ms;
 }

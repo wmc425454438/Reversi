@@ -10,35 +10,59 @@
 </head>
 <body>
     <div id="app">
-        <div v-on:click="undoClick" v-if="undoStack.length > 1">悔棋</div>
         <table>
             <tbody>
                 <tr v-for="(row, rowIndex) in tableArr" :index="rowIndex">
                     <td v-for="(col, colIndex) in row" :index="colIndex" v-on:click="moveChess(rowIndex, colIndex)">
-                        <div v-if="col == 1" class="chess chess_orange"></div>
-                        <div v-if="col == 2" class="chess chess_blue"></div>
-                        <div v-if="col == 3" class="chess chess_movable"></div>
+                        <div class="element">
+                            <div :class="{
+                                'chess': true,
+                                'chess-orange': col.type === 1, 
+                                'chess-blue': col.type === 2,
+                                'chess-movable': col.type === 3,
+                                'chess-rotate': col.reversal,
+                            }"></div>
+                            <!-- <div v-if="col.type == 1" :class="{ chess: true, 'chess-orange': true, 'chess-rotate': col.reversal }"></div>
+                            <div v-if="col.type == 2" :class="{ chess: true, 'chess-blue': true, 'chess-rotate': col.reversal }"></div>
+                            <div v-if="col.type == 3" class="chess chess-movable"></div> -->
+                        </div>
                     </td>
                 </tr>
+                <!-- <tr >
+                    <td >
+                        <div class="element">
+                            <div class="chess chess_orange"></div>
+                            <div class="chess chess_blue"></div>
+                        </div>
+                    </td>
+                </tr> -->
             </tbody>
         </table>
+        <button v-on:click="undoClick" v-if="undoStack.length > 1">悔棋</button>
+        <!-- <button v-on:click="setChessTypeAction" >翻转</button> -->
     </div>
 </body>
 <script>
     // 点击下子
     // 上传github （今天）
     // 计算可下子区域
-    // 计算翻转棋子(today)
+    // 计算翻转棋子(2.22)
     // 支持悔棋，方便调整状态，每一步推入栈
-    // 增加翻转特效
-    // 增加初始血量和基础攻击力棋子
+
+    // 增加翻转特效(2.22) 棋子对象属性？
+    // 增加初始血量和基础攻击力棋子(需要引入对象概念) 重写棋子12的概念？
+
     // 血量为0判断失败
     // 增加特殊效果棋子
     // 增加正营
     // 增加棋子特效
     // 1橙色 2蓝色 3可以落子的位置
     function createArray(m,n){
-      return new Array(m).fill('').map(d=>new Array(n).fill(0))
+      return new Array(m).fill('').map(d => {
+        return new Array(n).fill('').map(o=> {
+            return { type: 0, reversal: true, characters: {} }
+        });
+      });
     }
     var app = new Vue({
         el: "#app",
@@ -47,19 +71,17 @@
             tableColNum: 6,
             tableRowNum: 6,
             lastMove: 1,
-            chess_obj: {
-                chess: true,
-                chess_orange: false, 
-                chess_blue: true,
-            },
             undoStack: [],
+            reversiActive: true,
+        },
+        computed: {
         },
         created: function() {
             let tableArr = createArray(6,6);
-            tableArr[2][2] = 1;
-            tableArr[2][3] = 2;
-            tableArr[3][2] = 2;
-            tableArr[3][3] = 1;
+            tableArr[2][2].type = 1;
+            tableArr[2][3].type = 2;
+            tableArr[3][2].type = 2;
+            tableArr[3][3].type = 1;
             console.log(tableArr);
             this.tableArr = tableArr;
             this.calculateMovableArea(1);
@@ -76,14 +98,14 @@
                 this.$forceUpdate();
             },
             moveChess: function(row, col) {
-                let value = this.tableArr[row][col];
+                let { type } = this.tableArr[row][col];
                 let nowMoveType = this.lastMove;
-                if (value === 3) {
+                if (type === 3) {
                     if(this.lastMove == 1) {
-                        this.$set(this.tableArr[row], col, 1);
+                        this.setChessTypeAction(row, col, { type: 1 });
                         this.lastMove = 2;
                     } else if(this.lastMove == 2) {
-                        this.$set(this.tableArr[row], col, 2);
+                        this.setChessTypeAction(row, col, { type: 2 });
                         this.lastMove = 1;
                     }
                     this.reversiChess(row, col, nowMoveType);
@@ -103,7 +125,7 @@
                 let tableArr = this.tableArr;
                 tableArr.map((row, rowIndex) => {
                     row.map((chess, colIndex) => {
-                        if(chess === nowMoveType) {
+                        if(chess.type === nowMoveType) {
                             // 找到当前已下的相同子
                             self.findCouldMoveArea(rowIndex, colIndex, nowMoveType);
                             console.log(rowIndex, colIndex);
@@ -120,8 +142,8 @@
                 let tableArr = self.tableArr;
                 tableArr.map((row, rowIndex) => {
                     row.map((chess, colIndex) => {
-                        if(chess === 3) {
-                            self.$set(self.tableArr[rowIndex], colIndex, 0);
+                        if(chess.type === 3) {
+                            self.setChessTypeAction(rowIndex, colIndex, { type: 0 })
                         }
                         return chess;
                     });
@@ -148,87 +170,95 @@
                 // col不变 row-1 判断边界情况>0
                 // 上下左右判断方法一样，只是搜索规则不一样
                 for(let i = row-1; i >= 0; i--) {
-                    if(tableArr[i][col] === chessType || tableArr[row-1][col] === 0 || tableArr[row-1][col] === 3) {
+                    if(tableArr[i][col].type === chessType || tableArr[row-1][col].type === 0 || tableArr[row-1][col].type === 3) {
                         break;
-                    } else if(tableArr[i][col] === enemyType) {
+                    } else if(tableArr[i][col].type === enemyType) {
                         continue;
                     } else {
-                        tableArr[i][col] = 3;
+                        tableArr[i][col].type = 3;
+                        tableArr[i][col].reversal = false;
                         break;
                     }
                 }
                 for(let i = row+1; i <= rowLen-1; i++) {
-                    if(tableArr[i][col] === chessType || tableArr[row+1][col] === 0 || tableArr[row+1][col] === 3) {
+                    if(tableArr[i][col].type === chessType || tableArr[row+1][col].type === 0 || tableArr[row+1][col].type === 3) {
                         break;
-                    } else if(tableArr[i][col] === enemyType) {
+                    } else if(tableArr[i][col].type === enemyType) {
                         continue;
                     } else {
-                        tableArr[i][col] = 3;
+                        tableArr[i][col].type = 3;
+                        tableArr[i][col].reversal = false;
                         break;
                     }
                 }
                 // 左
                 for(let j = col-1; j >= 0; j--) {
-                    if(tableArr[row][j] === chessType || tableArr[row][col-1] === 0 || tableArr[row][col-1] === 3) {
+                    if(tableArr[row][j].type === chessType || tableArr[row][col-1].type === 0 || tableArr[row][col-1].type === 3) {
                         break;
-                    } else if(tableArr[row][j] === enemyType) {
+                    } else if(tableArr[row][j].type === enemyType) {
                         continue;
                     } else {
-                        tableArr[row][j] = 3;
+                        tableArr[row][j].type = 3;
+                        tableArr[row][j].reversal = false;
                         break;
                     }
                 }
                 for(let j = col+1; j <= colLen-1; j++) {
-                    if(tableArr[row][j] === chessType || tableArr[row][col+1] === 0 || tableArr[row][col+1] === 3) {
+                    if(tableArr[row][j].type === chessType || tableArr[row][col+1].type === 0 || tableArr[row][col+1].type === 3) {
                         break;
-                    } else if(tableArr[row][j] === enemyType) {
+                    } else if(tableArr[row][j].type === enemyType) {
                         continue;
                     } else {
-                        tableArr[row][j] = 3;
+                        tableArr[row][j].type = 3;
+                        tableArr[row][j].reversal = false;
                         break;
                     }
                 }
                 // 左上角
                 for(let i = row-1, j = col-1; i >= 0 && j >= 0; i--, j--) {
-                    if(tableArr[i][j] === chessType || tableArr[row-1][col-1] === 0 || tableArr[row-1][col-1] === 3) {
+                    if(tableArr[i][j].type === chessType || tableArr[row-1][col-1].type === 0 || tableArr[row-1][col-1].type === 3) {
                         break;
-                    } else if(tableArr[i][j] === enemyType) {
+                    } else if(tableArr[i][j].type === enemyType) {
                         continue;
                     } else {
-                        tableArr[i][j] = 3;
+                        tableArr[i][j].type = 3;
+                        tableArr[i][j].reversal = false;
                         break;
                     }
                 }
                 // 右下角
                 for(let i = row+1, j = col+1; i <= rowLen-1 && j <= colLen-1; i++, j++) {
-                    if(tableArr[i][j] === chessType || tableArr[row+1][col+1] === 0 || tableArr[row+1][col+1] === 3) {
+                    if(tableArr[i][j].type === chessType || tableArr[row+1][col+1].type === 0 || tableArr[row+1][col+1].type === 3) {
                         break;
-                    } else if(tableArr[i][j] === enemyType) {
+                    } else if(tableArr[i][j].type === enemyType) {
                         continue;
                     } else {
-                        tableArr[i][j] = 3;
+                        tableArr[i][j].type = 3;
+                        tableArr[i][j].reversal = false;
                         break;
                     }
                 }
                 // 左下角
                 for(let i = row+1, j = col-1; i <= rowLen-1 && j >= 0; i++, j--) {
-                    if(tableArr[i][j] === chessType || tableArr[row+1][col-1] === 0 || tableArr[row+1][col-1] === 3) {
+                    if(tableArr[i][j].type === chessType || tableArr[row+1][col-1].type === 0 || tableArr[row+1][col-1].type === 3) {
                         break;
-                    } else if(tableArr[i][j] === enemyType) {
+                    } else if(tableArr[i][j].type === enemyType) {
                         continue;
                     } else {
-                        tableArr[i][j] = 3;
+                        tableArr[i][j].type = 3;
+                        tableArr[i][j].reversal = false;
                         break;
                     }
                 }
                 // 右上角
                 for(let i = row-1, j = col+1; i >= 0 && j <= colLen-1; i--, j++) {
-                    if(tableArr[i][j] === chessType || tableArr[row-1][col+1] === 0 || tableArr[row-1][col+1] === 3) {
+                    if(tableArr[i][j].type === chessType || tableArr[row-1][col+1].type === 0 || tableArr[row-1][col+1].type === 3) {
                         break;
-                    } else if(tableArr[i][j] === enemyType) {
+                    } else if(tableArr[i][j].type === enemyType) {
                         continue;
                     } else {
-                        tableArr[i][j] = 3;
+                        tableArr[i][j].type = 3;
+                        tableArr[i][j].reversal = false;
                         break;
                     }
                 }
@@ -261,73 +291,73 @@
                 // col不变 row-1 判断边界情况>0
                 // 上下左右判断方法一样，只是搜索规则不一样
                 for(let i = row-1; i >= 0; i--) {
-                    if(tableArr[i][col] === chessType && i !== row-1) {
+                    if(tableArr[i][col].type === chessType && i !== row-1) {
                         // 寻找有效值和当前值的所有纵向的子，进行值的翻转
                         for(let _i = row-1; _i >= i; _i--) {
-                            self.$set(self.tableArr[_i], col, chessType);
+                            self.setChessTypeAction(_i, col, { type: chessType, reversal: true });
                         }
                         break;
-                    } else if (tableArr[i][col] === enemyType) {
+                    } else if (tableArr[i][col].type === enemyType) {
                         continue;
                     } else {
                         break;
                     }
                 }
                 for(let i = row+1; i <= rowLen-1; i++) {
-                    if(tableArr[i][col] === chessType && i !== row+1) {
+                    if(tableArr[i][col].type === chessType && i !== row+1) {
                         for(let _i = row+1; _i <= i; _i++) {
-                            self.$set(self.tableArr[_i], col, chessType);
+                            self.setChessTypeAction(_i, col, { type: chessType, reversal: true });
                         }
                         break;
-                    } else if (tableArr[i][col] === enemyType) {
+                    } else if (tableArr[i][col].type === enemyType) {
                         continue;
                     } else {
                         break;
                     }
                 }
                 for(let j = col-1; j >= 0; j--) {
-                    if(tableArr[row][j] === chessType && j !== col-1) {
+                    if(tableArr[row][j].type === chessType && j !== col-1) {
                         for(let _j = col-1; _j >= j; _j--) {
-                            self.$set(self.tableArr[row], _j, chessType);
+                            self.setChessTypeAction(row, _j, { type: chessType, reversal: true });
                         }
                         break;
-                    } else if (tableArr[row][j] === enemyType) {
+                    } else if (tableArr[row][j].type === enemyType) {
                         continue;
                     } else {
                         break;
                     }
                 }
                 for(let j = col+1; j <= colLen-1; j++) {
-                    if(tableArr[row][j] === chessType && j !== col+1) {
+                    if(tableArr[row][j].type === chessType && j !== col+1) {
                         for(let _j = col+1; _j <= j; _j++) {
-                            self.$set(self.tableArr[row], _j, chessType);
+                            self.setChessTypeAction(row, _j, { type: chessType, reversal: true });
                         }
                         break;
-                    } else if (tableArr[row][j] === enemyType) {
+                    } else if (tableArr[row][j].type === enemyType) {
                         continue;
                     } else {
                         break;
                     }
                 }
                 for(let i = row-1, j = col-1; i >= 0 && j >= 0; i--, j--) {
-                    if(tableArr[i][j] === chessType && i !== row-1 && j !== col-1) {
+                    if(tableArr[i][j].type === chessType && i !== row-1 && j !== col-1) {
                         for(let _i = row-1, _j = col-1; _i >= i && _j >= j; _i--, _j--) {
-                            self.$set(self.tableArr[_i], _j, chessType);
+                            self.setChessTypeAction(_i, _j, { type: chessType, reversal: true });
                         }
                         break;
-                    } else if (tableArr[i][j] === enemyType) {
+                    } else if (tableArr[i][j].type === enemyType) {
                         continue;
                     } else {
                         break;
                     }
                 }
                 for(let i = row+1, j = col+1; i <= rowLen-1 && j <= colLen-1; i++, j++) {
-                    if(tableArr[i][j] === chessType && i !== row+1 && j !== col+1) {
+                    if(tableArr[i][j].type === chessType && i !== row+1 && j !== col+1) {
                         for(let _i = row+1, _j = col+1; _i <= i && _j <= j; _i++, _j++) {
-                            self.$set(self.tableArr[_i], _j, chessType);
+                            self.setChessTypeAction(_i, _j, { type: chessType, reversal: true });
                         }
                         break;
-                    } else if (tableArr[i][j] === enemyType) {
+                    } else if (tableArr[i][j].type === enemyType) {
                         continue;
                     } else {
                         break;
@@ -335,12 +365,12 @@
                 }
                 // 左下角
                 for(let i = row+1, j = col-1; i <= rowLen-1 && j >= 0; i++, j--) {
-                    if(tableArr[i][j] === chessType && i !== row+1 && j !== col-1) {
+                    if(tableArr[i][j].type === chessType && i !== row+1 && j !== col-1) {
                         for(let _i = row+1, _j = col-1; _i <= i && _j >= j; _i++, _j--) {
-                            self.$set(self.tableArr[_i], _j, chessType);
+                            self.setChessTypeAction(_i, _j, { type: chessType, reversal: true });
                         }
                         break;
-                    } else if (tableArr[i][j] === enemyType) {
+                    } else if (tableArr[i][j].type === enemyType) {
                         continue;
                     } else {
                         break;
@@ -348,17 +378,27 @@
                 }
                 // 右上角
                 for(let i = row-1, j = col+1; i >= 0 && j <= colLen-1; i--, j++) {
-                    if(tableArr[i][j] === chessType && i !== row-1 && j !== col+1) {
+                    if(tableArr[i][j].type === chessType && i !== row-1 && j !== col+1) {
                         for(let _i = row-1, _j = col+1; _i >= i && _j <= j; _i--, _j++) {
-                            self.$set(self.tableArr[_i], _j, chessType);
+                            self.setChessTypeAction(_i, _j, { type: chessType, reversal: true });
                         }
                         break;
-                    } else if (tableArr[i][j] === enemyType) {
+                    } else if (tableArr[i][j].type === enemyType) {
                         continue;
                     } else {
                         break;
                     }
                 }
+            },
+            setChessTypeAction: function(row, col, obj) {
+                let self = this;
+                // let { type = 0, reversal = false } = obj;
+                let tableObj = self.tableArr[row][col];
+                self.$set(self.tableArr[row], col, Object.assign(tableObj, obj));
+            },
+            
+            reversiAnimation: function() {
+
             },
         },
         
