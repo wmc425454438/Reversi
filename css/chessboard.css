@@ -52,3 +52,29 @@ td {
 .chess-rotate {
     transition: transform 400ms ease-in-out, background 0ms 200ms;
 }
+
+.chess-character {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+}
+
+.player {
+    position: relative;
+    width: 30em;
+    background-color: gray;
+    height: 20px;
+    border-radius: 5px;
+    margin: 20px auto;
+    overflow: hidden;
+}
+
+.hp {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 30em;
+    height: 20px;
+    background-color: red;
+}

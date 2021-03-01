@@ -10,6 +10,9 @@
 </head>
 <body>
     <div id="app">
+        <div class="player">
+            <div class="hp" :style="{ width: player1.hp + 'em' }"></div>
+        </div>
         <table>
             <tbody>
                 <tr v-for="(row, rowIndex) in tableArr" :index="rowIndex">
@@ -21,7 +24,8 @@
                                 'chess-blue': col.type === 2,
                                 'chess-movable': col.type === 3,
                                 'chess-rotate': col.reversal,
-                            }"></div>
+                                'chess-character': col.character !== '{}',
+                            }">{{ showName(col.character._name) }}</div>
                             <!-- <div v-if="col.type == 1" :class="{ chess: true, 'chess-orange': true, 'chess-rotate': col.reversal }"></div>
                             <div v-if="col.type == 2" :class="{ chess: true, 'chess-blue': true, 'chess-rotate': col.reversal }"></div>
                             <div v-if="col.type == 3" class="chess chess-movable"></div> -->
@@ -38,6 +42,9 @@
                 </tr> -->
             </tbody>
         </table>
+        <div class="player">
+            <div class="hp" :style="{ width: player2.hp + 'em' }"></div>
+        </div>
         <button v-on:click="undoClick" v-if="undoStack.length > 1">悔棋</button>
         <!-- <button v-on:click="setChessTypeAction" >翻转</button> -->
     </div>
@@ -50,7 +57,49 @@
     // 支持悔棋，方便调整状态，每一步推入栈
 
     // 增加翻转特效(2.22) 棋子对象属性？
-    // 增加初始血量和基础攻击力棋子(需要引入对象概念) 重写棋子12的概念？
+    // 增加初始血量和基础攻击力棋子(需要引入对象概念) 重写棋子12的概念？（周三前）
+    
+    class Characters {
+        constructor(name, attack, combo) {
+            this._name = name || 'soldier';
+            this._attack = attack || 1;
+            this._combo = combo || 1; // 先不做 TODO
+        }
+
+        get name() {
+            return this._name;
+        }
+
+        get attack() {
+            return this._attack;
+        }
+
+        get combo() {
+            return this._combo;
+        }
+
+    }
+
+    class Player {
+        constructor(name, hp, chessType) {
+            this._name = name || 'player';
+            this._hp = hp || 30;
+            this._chessType = chessType; // 不能为空，且一个为1一个为2
+        }
+
+        get name() {
+            return this._name;
+        }
+
+        get hp() {
+            return this._hp;
+        }
+
+        get chessType() {
+            return this._chessType;
+        }
+
+    }
 
     // 血量为0判断失败
     // 增加特殊效果棋子
@@ -60,7 +109,7 @@
     function createArray(m,n){
       return new Array(m).fill('').map(d => {
         return new Array(n).fill('').map(o=> {
-            return { type: 0, reversal: true, characters: {} }
+            return { type: 0, reversal: true, character: {} }
         });
       });
     }
@@ -73,21 +122,29 @@
             lastMove: 1,
             undoStack: [],
             reversiActive: true,
+            player1: {},
+            player2: {},
         },
         computed: {
+            
         },
         created: function() {
-            let tableArr = createArray(6,6);
-            tableArr[2][2].type = 1;
-            tableArr[2][3].type = 2;
-            tableArr[3][2].type = 2;
-            tableArr[3][3].type = 1;
-            console.log(tableArr);
-            this.tableArr = tableArr;
-            this.calculateMovableArea(1);
-            this.undoStack.push(JSON.parse(JSON.stringify(this.tableArr)));
+            this.initChessDesk();
         },
         methods: {
+            initChessDesk: function() {
+                let tableArr = createArray(6,6);
+                tableArr[2][2].type = 1;
+                tableArr[2][3].type = 2;
+                tableArr[3][2].type = 2;
+                tableArr[3][3].type = 1;
+                console.log(tableArr);
+                this.tableArr = tableArr;
+                this.calculateMovableArea(1);
+                this.undoStack.push(JSON.parse(JSON.stringify(this.tableArr)));
+
+                this.initPlayer();
+            },
             undoClick: function() {
                 let nowStep = this.undoStack.pop();
                 let stackLen = this.undoStack.length;
@@ -97,21 +154,55 @@
                 this.lastMove = this.lastMove === 1 ? 2 : 1;
                 this.$forceUpdate();
             },
-            moveChess: function(row, col) {
-                let { type } = this.tableArr[row][col];
-                let nowMoveType = this.lastMove;
-                if (type === 3) {
-                    if(this.lastMove == 1) {
-                        this.setChessTypeAction(row, col, { type: 1 });
-                        this.lastMove = 2;
-                    } else if(this.lastMove == 2) {
-                        this.setChessTypeAction(row, col, { type: 2 });
-                        this.lastMove = 1;
-                    }
-                    this.reversiChess(row, col, nowMoveType);
-                    this.calculateMovableArea(this.lastMove);
+            showName: function(name) {
+                let _name = name || '';
+                if(_name) {
+                    return String(_name).substr(0,1).toUpperCase();
                 }
-                this.undoStack.push(JSON.parse(JSON.stringify(this.tableArr)));
+                return '';
+            },
+            initChess: function(name, attack, combo) {
+                let soldier = new Characters(name, attack, combo);
+                return soldier;
+            },
+            computeAttack: function(nowMoveType, character) {
+                // 还需要改写，加上combo的伤害
+                let self = this;
+                let chessType = nowMoveType;
+                let { _attack } = character;
+                let playerBeAttacked;
+                if(Number(chessType) === 2) {
+                    playerBeAttacked = self.player1;
+                } else {
+                    playerBeAttacked = self.player2;
+                }
+                if((playerBeAttacked._hp - _attack) > 0) {
+                    playerBeAttacked._hp -= _attack;
+                } else {
+                    playerBeAttacked._hp = 0; // TODO 血量不显示减少就gameover了
+                    self.gameOver();
+                }
+            },
+            moveChess: function(row, col) {
+                let self = this;
+                let character = self.initChess('soldier', 20, 20); // 每次选择棋子落子实现人物不同
+
+                let { type } = self.tableArr[row][col];
+                let nowMoveType = self.lastMove;
+                if (type === 3) {
+                    if(self.lastMove == 1) {
+                        self.setChessTypeAction(row, col, { type: 1, character: { ...character  }});
+                        self.lastMove = 2;
+                    } else if(self.lastMove == 2) {
+                        self.setChessTypeAction(row, col, { type: 2, character: { ...character  } });
+                        self.lastMove = 1;
+                    }
+                    self.reversiChess(row, col, nowMoveType);
+                    // 计算伤害？在生成人物时？还是在落子后
+                    self.computeAttack(nowMoveType, character);
+                    self.calculateMovableArea(self.lastMove);
+                }
+                self.undoStack.push(JSON.parse(JSON.stringify(self.tableArr)));
             },
             calculateMovableArea: function(nowMoveType) {
                 let self = this;
@@ -396,13 +487,20 @@
                 let tableObj = self.tableArr[row][col];
                 self.$set(self.tableArr[row], col, Object.assign(tableObj, obj));
             },
-            
-            reversiAnimation: function() {
-
+            initPlayer: function() {
+                let player1 = new Player('bot1', 30, 1);
+                let player2 = new Player('bot2', 30, 2);
+                this.player1 = player1;
+                this.player2 = player2;
             },
+            gameOver: function() {
+                alert('游戏结束，重新来过');
+                this.initChessDesk();
+            }
         },
         
     });
+
     
 </script>
 </html>
