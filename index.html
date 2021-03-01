@@ -11,7 +11,8 @@
 <body>
     <div id="app">
         <div class="player">
-            <div class="hp" :style="{ width: player1.hp + 'em' }"></div>
+            <div ref="player1" class="player-hp" :style="{ width: player1.hp/initialHp*100 + '%' }"></div>
+            <div class="player-hp--ratio">{{player1.hp}}/{{initialHp}}</div>
         </div>
         <table>
             <tbody>
@@ -43,7 +44,8 @@
             </tbody>
         </table>
         <div class="player">
-            <div class="hp" :style="{ width: player2.hp + 'em' }"></div>
+            <div ref="player2" class="player-hp" :style="{ width: player2.hp/initialHp*100 + '%' }"></div>
+            <div class="player-hp--ratio">{{player2.hp}}/{{initialHp}}</div>
         </div>
         <button v-on:click="undoClick" v-if="undoStack.length > 1">悔棋</button>
         <!-- <button v-on:click="setChessTypeAction" >翻转</button> -->
@@ -57,7 +59,7 @@
     // 支持悔棋，方便调整状态，每一步推入栈
 
     // 增加翻转特效(2.22) 棋子对象属性？
-    // 增加初始血量和基础攻击力棋子(需要引入对象概念) 重写棋子12的概念？（周三前）
+    // 增加初始血量和基础攻击力棋子(需要引入对象概念) 重写棋子12的概念？
     
     class Characters {
         constructor(name, attack, combo) {
@@ -83,7 +85,7 @@
     class Player {
         constructor(name, hp, chessType) {
             this._name = name || 'player';
-            this._hp = hp || 30;
+            this._hp = hp || 120;
             this._chessType = chessType; // 不能为空，且一个为1一个为2
         }
 
@@ -101,10 +103,15 @@
 
     }
 
-    // 血量为0判断失败
+    // 血量为0判断失败 目前不为零已经判断为输了，写法变一下，判断一方血量为0再输。
+    // 增加血条变少的动画，渐变 complete
+    // 增加combo伤害和效果（周三前）
+    
+    // 增加卡牌
     // 增加特殊效果棋子
     // 增加正营
     // 增加棋子特效
+
     // 1橙色 2蓝色 3可以落子的位置
     function createArray(m,n){
       return new Array(m).fill('').map(d => {
@@ -124,9 +131,36 @@
             reversiActive: true,
             player1: {},
             player2: {},
+            initialHp: 120,
         },
         computed: {
             
+        },
+        watch: {
+            player1: {
+                handler(newValue, oldValue) {
+                    let self = this;
+                    if(newValue._hp === 0) {
+                        self.$nextTick(() => {
+                            self.gameOver();
+                        });
+                    }
+                },
+                immediate: true,
+                deep: true
+            },
+            player2: {
+                handler(newValue, oldValue) {
+                    let self = this;
+                    if(newValue._hp === 0) {
+                        self.$nextTick(() => {
+                            self.gameOver();
+                        });
+                    }
+                },
+                immediate: true,
+                deep: true
+            },
         },
         created: function() {
             this.initChessDesk();
@@ -179,8 +213,7 @@
                 if((playerBeAttacked._hp - _attack) > 0) {
                     playerBeAttacked._hp -= _attack;
                 } else {
-                    playerBeAttacked._hp = 0; // TODO 血量不显示减少就gameover了
-                    self.gameOver();
+                    playerBeAttacked._hp = 0;
                 }
             },
             moveChess: function(row, col) {
@@ -488,14 +521,19 @@
                 self.$set(self.tableArr[row], col, Object.assign(tableObj, obj));
             },
             initPlayer: function() {
-                let player1 = new Player('bot1', 30, 1);
-                let player2 = new Player('bot2', 30, 2);
+                let player1 = new Player('bot1', '', 1);
+                let player2 = new Player('bot2', '', 2);
                 this.player1 = player1;
                 this.player2 = player2;
             },
             gameOver: function() {
-                alert('游戏结束，重新来过');
-                this.initChessDesk();
+                let player1Width = this.$refs.player1.style.width;
+                let player2Width = this.$refs.player2.style.width;
+                if (!Number(player1Width.slice(0, -1)) || !Number(player2Width.slice(0, -1))) {
+                    // alert('游戏结束，重新来过');
+                    // this.initChessDesk();
+                    // 换个UI框，不禁止当前执行就可以了，点击确定进行下一步
+                }
             }
         },
         

@@ -68,13 +68,26 @@ td {
     border-radius: 5px;
     margin: 20px auto;
     overflow: hidden;
+    text-align: center;
+    font-weight: bold;
+    color: white;
 }
 
-.hp {
+.player-hp {
     position: absolute;
     top: 0;
     left: 0;
     width: 30em;
     height: 20px;
     background-color: red;
+    transition: width .5s ease-in-out;
+    -moz-transition: width .5s ease-in-out; /* Firefox 4 */
+    -webkit-transition: width .5s ease-in-out; /* Safari 和 Chrome */
+    -o-transition: width .5s ease-in-out; /* Opera */
+}
+
+.player-hp--ratio {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
 }
