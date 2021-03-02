@@ -198,7 +198,13 @@
           this.calculateMovableArea(1);
 
           this.initPlayer();
-          this.undoStack.push(JSON.parse(JSON.stringify(this.$data)));
+          // this.pushIntoUndoStack(JSON.parse(JSON.stringify(this.$data)));
+        },
+        pushIntoUndoStack: function(data) {
+          if (this.undoStack.length >= 3) {
+            this.undoStack.shift();
+          }
+          this.undoStack.push(data);
         },
         undoClick: function () {
           let nowStep = this.undoStack.pop();
@@ -271,7 +277,7 @@
             self.computeAttack(nowMoveType, character);
             self.calculateMovableArea(self.lastMove);
           }
-          self.undoStack.push(JSON.parse(JSON.stringify(self.$data)));
+          // self.pushIntoUndoStack(JSON.parse(JSON.stringify(self.$data)));
         },
         calculateMovableArea: function (nowMoveType) {
           let self = this;
