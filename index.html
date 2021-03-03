@@ -33,17 +33,18 @@
               v-on:click="moveChess(rowIndex, colIndex)"
             >
               <div class="element">
+                <div :class="{'chess-character': col.character !== '{}'}">{{ showName(col.character._name) }}</div>
                 <div
+                  :data-attack="col.character._attack"
+                  :data-combo="col.character._combo"
                   :class="{
                                 'chess': true,
                                 'chess-orange': col.type === 1, 
                                 'chess-blue': col.type === 2,
                                 'chess-movable': col.type === 3,
                                 'chess-rotate': col.reversal,
-                                'chess-character': col.character !== '{}',
                             }"
                 >
-                  {{ showName(col.character._name) }}
                 </div>
                 <!-- <div v-if="col.type == 1" :class="{ chess: true, 'chess-orange': true, 'chess-rotate': col.reversal }"></div>
                             <div v-if="col.type == 2" :class="{ chess: true, 'chess-blue': true, 'chess-rotate': col.reversal }"></div>
@@ -70,7 +71,11 @@
         <div class="player-hp--ratio">{{player2._hp}}/{{initialHp}}</div>
       </div>
       <button v-on:click="undoClick" v-if="undoStack.length > 1">悔棋</button>
-      <a-modal v-model:visible="gameOverModalVisible" title="游戏结束" @ok="handleGameOverOk">
+      <a-modal
+        v-model:visible="gameOverModalVisible"
+        title="游戏结束"
+        @ok="handleGameOverOk"
+      >
         <p>重新开始吧！</p>
       </a-modal>
       <!-- <button v-on:click="setChessTypeAction" >翻转</button> -->
@@ -150,7 +155,7 @@
         tableArr: null,
         tableColNum: 6,
         tableRowNum: 6,
-        lastMove: 1,
+        lastMove: null,
         undoStack: [],
         player1: {},
         player2: {},
@@ -195,12 +200,13 @@
           tableArr[3][3].type = 1;
           console.log(tableArr);
           this.tableArr = tableArr;
-          this.calculateMovableArea(1);
+          this.lastMove = 1;
+          this.calculateMovableArea(this.lastMove);
 
           this.initPlayer();
           // this.pushIntoUndoStack(JSON.parse(JSON.stringify(this.$data)));
         },
-        pushIntoUndoStack: function(data) {
+        pushIntoUndoStack: function (data) {
           if (this.undoStack.length >= 3) {
             this.undoStack.shift();
           }
@@ -232,19 +238,18 @@
           let soldier = new Characters(name, attack, combo);
           return soldier;
         },
-        computeAttack: function (nowMoveType, character) {
+        computeAttack: function (nowMoveType, attack) {
           // 还需要改写，加上combo的伤害
           let self = this;
           let chessType = nowMoveType;
-          let { _attack } = character;
           let playerBeAttacked;
           if (Number(chessType) === 2) {
             playerBeAttacked = self.player1;
           } else {
             playerBeAttacked = self.player2;
           }
-          if (playerBeAttacked._hp - _attack > 0) {
-            playerBeAttacked._hp -= _attack;
+          if (playerBeAttacked._hp - attack > 0) {
+            playerBeAttacked._hp -= attack;
           } else {
             playerBeAttacked._hp = 0;
             self.$nextTick(() => {
@@ -254,7 +259,7 @@
         },
         moveChess: function (row, col) {
           let self = this;
-          let character = self.initChess("soldier", 20, 20); // 每次选择棋子落子实现人物不同
+          let character = self.initChess("soldier", 10, 30); // 每次选择棋子落子实现人物不同
 
           let { type } = self.tableArr[row][col];
           let nowMoveType = self.lastMove;
@@ -274,7 +279,7 @@
             }
             self.reversiChess(row, col, nowMoveType);
             // 计算伤害？在生成人物时？还是在落子后
-            self.computeAttack(nowMoveType, character);
+            self.computeAttack(nowMoveType, character._attack);
             self.calculateMovableArea(self.lastMove);
           }
           // self.pushIntoUndoStack(JSON.parse(JSON.stringify(self.$data)));
@@ -502,7 +507,11 @@
           for (let i = row - 1; i >= 0; i--) {
             if (tableArr[i][col].type === chessType && i !== row - 1) {
               // 寻找有效值和当前值的所有纵向的子，进行值的翻转
-              for (let _i = row - 1; _i >= i; _i--) {
+              if (tableArr[i][col].character._combo) {
+                // 如果当前棋子有combo伤害，把伤害加上，直接扣除血量？
+                self.computeAttack(chessType, tableArr[i][col].character._combo);
+              }
+              for (let _i = row - 1; _i > i; _i--) {
                 self.reversiChessAction(_i, col, chessType);
               }
               break;
@@ -514,7 +523,10 @@
           }
           for (let i = row + 1; i <= rowLen - 1; i++) {
             if (tableArr[i][col].type === chessType && i !== row + 1) {
-              for (let _i = row + 1; _i <= i; _i++) {
+              if (tableArr[i][col].character._combo) {
+                self.computeAttack(chessType, tableArr[i][col].character._combo);
+              }
+              for (let _i = row + 1; _i < i; _i++) {
                 self.reversiChessAction(_i, col, chessType);
               }
               break;
@@ -526,7 +538,10 @@
           }
           for (let j = col - 1; j >= 0; j--) {
             if (tableArr[row][j].type === chessType && j !== col - 1) {
-              for (let _j = col - 1; _j >= j; _j--) {
+              if (tableArr[row][j].character._combo) {
+                self.computeAttack(chessType, tableArr[row][j].character._combo);
+              }
+              for (let _j = col - 1; _j > j; _j--) {
                 self.reversiChessAction(row, _j, chessType);
               }
               break;
@@ -538,7 +553,10 @@
           }
           for (let j = col + 1; j <= colLen - 1; j++) {
             if (tableArr[row][j].type === chessType && j !== col + 1) {
-              for (let _j = col + 1; _j <= j; _j++) {
+              if (tableArr[row][j].character._combo) {
+                self.computeAttack(chessType, tableArr[row][j].character._combo);
+              }
+              for (let _j = col + 1; _j < j; _j++) {
                 self.reversiChessAction(row, _j, chessType);
               }
               break;
@@ -554,9 +572,12 @@
               i !== row - 1 &&
               j !== col - 1
             ) {
+              if (tableArr[i][j].character._combo) {
+                self.computeAttack(chessType, tableArr[i][j].character._combo);
+              }
               for (
                 let _i = row - 1, _j = col - 1;
-                _i >= i && _j >= j;
+                _i > i && _j > j;
                 _i--, _j--
               ) {
                 self.reversiChessAction(_i, _j, chessType);
@@ -578,9 +599,12 @@
               i !== row + 1 &&
               j !== col + 1
             ) {
+              if (tableArr[i][j].character._combo) {
+                self.computeAttack(chessType, tableArr[i][j].character._combo);
+              }
               for (
                 let _i = row + 1, _j = col + 1;
-                _i <= i && _j <= j;
+                _i < i && _j < j;
                 _i++, _j++
               ) {
                 self.reversiChessAction(_i, _j, chessType);
@@ -603,9 +627,12 @@
               i !== row + 1 &&
               j !== col - 1
             ) {
+              if (tableArr[i][j].character._combo) {
+                self.computeAttack(chessType, tableArr[i][j].character._combo);
+              }
               for (
                 let _i = row + 1, _j = col - 1;
-                _i <= i && _j >= j;
+                _i < i && _j > j;
                 _i++, _j--
               ) {
                 self.reversiChessAction(_i, _j, chessType);
@@ -628,9 +655,12 @@
               i !== row - 1 &&
               j !== col + 1
             ) {
+              if (tableArr[i][j].character._combo) {
+                self.computeAttack(chessType, tableArr[i][j].character._combo);
+              }
               for (
                 let _i = row - 1, _j = col + 1;
-                _i >= i && _j <= j;
+                _i > i && _j < j;
                 _i--, _j++
               ) {
                 self.reversiChessAction(_i, _j, chessType);
@@ -670,23 +700,14 @@
             !Number(player1Width.slice(0, -1)) ||
             !Number(player2Width.slice(0, -1))
           ) {
-            // 换个UI框，不禁止当前执行就可以了，点击确定进行下一步
-            // Modal.confirm({
-            //   title: "游戏结束",
-            //   icon: createVNode(ExclamationCircleOutlined),
-            //   content: "重新开始吧",
-            //   onOk() {
-            //     self.initChessDesk();
-            //   },
-            // });
             self.gameOverModalVisible = true;
           }
         },
         handleGameOverOk: function () {
-            let self = this;
-            self.initChessDesk();
-            self.gameOverModalVisible = false;
-        }
+          let self = this;
+          self.initChessDesk();
+          self.gameOverModalVisible = false;
+        },
       },
     });
   </script>
