@@ -6,9 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>翻转棋</title>
     <link rel="stylesheet" href="css/chessboard.css" />
+    <link rel="stylesheet" href="css/canvas.css" />
     <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
     <script src="https://cdn.bootcdn.net/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
     <script src="https://cdn.bootcdn.net/ajax/libs/ant-design-vue/1.7.3/antd.min.js"></script>
+    <!-- <script type="module" src="model/index.js"></script> -->
     <link
       href="https://cdn.bootcdn.net/ajax/libs/ant-design-vue/1.7.3/antd.css"
       rel="stylesheet"
@@ -16,59 +18,66 @@
   </head>
   <body>
     <div id="app">
-      <div class="player">
-        <div
-          ref="player1"
-          class="player-hp"
-          :style="{ width: player1._hp/initialHp*100 + '%' }"
-        ></div>
-        <div class="player-hp--ratio">{{player1._hp}}/{{initialHp}}</div>
-      </div>
-      <table>
-        <tbody>
-          <tr v-for="(row, rowIndex) in tableArr" :index="rowIndex">
-            <td
-              v-for="(col, colIndex) in row"
-              :index="colIndex"
-              v-on:click="moveChess(rowIndex, colIndex)"
-            >
-              <div class="element">
-                <div :class="{'chess-character': col.character !== '{}'}">{{ showName(col.character._name) }}</div>
-                <div
-                  :data-attack="col.character._attack"
-                  :data-combo="col.character._combo"
-                  :class="{
-                                'chess': true,
-                                'chess-orange': col.type === 1, 
-                                'chess-blue': col.type === 2,
-                                'chess-movable': col.type === 3,
-                                'chess-rotate': col.reversal,
-                            }"
+      <div class="container">  
+        <div class="player">
+          <div
+            ref="player1"
+            class="player-hp"
+            :style="{ width: player1._hp/initialHp*100 + '%' }"
+          ></div>
+          <div class="player-hp--ratio">{{player1._hp}}/{{initialHp}}</div>
+        </div>
+        <div class="desk-table" ref="table">
+            <canvas id="canvas" ref="canvas" width="421" height="421"></canvas>
+          <table>
+            <tbody>
+              <tr v-for="(row, rowIndex) in tableArr" :index="rowIndex">
+                <td
+                  v-for="(col, colIndex) in row"
+                  :index="colIndex"
+                  v-on:click="moveChess(rowIndex, colIndex)"
+                  :ref="'reftd' + rowIndex + colIndex"
                 >
-                </div>
-                <!-- <div v-if="col.type == 1" :class="{ chess: true, 'chess-orange': true, 'chess-rotate': col.reversal }"></div>
-                            <div v-if="col.type == 2" :class="{ chess: true, 'chess-blue': true, 'chess-rotate': col.reversal }"></div>
-                            <div v-if="col.type == 3" class="chess chess-movable"></div> -->
-              </div>
-            </td>
-          </tr>
-          <!-- <tr >
-                    <td >
-                        <div class="element">
-                            <div class="chess chess_orange"></div>
-                            <div class="chess chess_blue"></div>
-                        </div>
-                    </td>
-                </tr> -->
-        </tbody>
-      </table>
-      <div class="player">
-        <div
-          ref="player2"
-          class="player-hp"
-          :style="{ width: player2._hp/initialHp*100 + '%' }"
-        ></div>
-        <div class="player-hp--ratio">{{player2._hp}}/{{initialHp}}</div>
+                  <div class="element">
+                    <div :class="{'chess-character': col.character !== '{}'}">{{ showName(col.character._name) }}</div>
+                    <div
+                      :data-attack="col.character._attack"
+                      :data-combo="col.character._combo"
+                      :class="{
+                                    'chess': true,
+                                    'chess-orange': col.type === 1, 
+                                    'chess-blue': col.type === 2,
+                                    'chess-movable': col.type === 3,
+                                    'chess-rotate': col.reversal,
+                                }"
+                    >
+                    </div>
+                    <!-- <div v-if="col.type == 1" :class="{ chess: true, 'chess-orange': true, 'chess-rotate': col.reversal }"></div>
+                                <div v-if="col.type == 2" :class="{ chess: true, 'chess-blue': true, 'chess-rotate': col.reversal }"></div>
+                                <div v-if="col.type == 3" class="chess chess-movable"></div> -->
+                  </div>
+                </td>
+              </tr>
+              <!-- <tr >
+                        <td >
+                            <div class="element">
+                                <div class="chess chess_orange"></div>
+                                <div class="chess chess_blue"></div>
+                            </div>
+                        </td>
+                    </tr> -->
+            </tbody>
+          </table>
+        </div>
+        
+        <div class="player">
+          <div
+            ref="player2"
+            class="player-hp"
+            :style="{ width: player2._hp/initialHp*100 + '%' }"
+          ></div>
+          <div class="player-hp--ratio">{{player2._hp}}/{{initialHp}}</div>
+        </div>
       </div>
       <button v-on:click="undoClick" v-if="undoStack.length > 1">悔棋</button>
       <a-modal
@@ -81,7 +90,9 @@
       <!-- <button v-on:click="setChessTypeAction" >翻转</button> -->
     </div>
   </body>
-  <script>
+  <script type="module">
+    import { Player } from './model/player.js'
+    import { Liubei, Guanyu, Zhangfei } from './model/characters/index.js'
     // 点击下子
     // 上传github （今天）
     // 计算可下子区域
@@ -90,46 +101,6 @@
 
     // 增加翻转特效(2.22) 棋子对象属性？
     // 增加初始血量和基础攻击力棋子(需要引入对象概念) 重写棋子12的概念？
-
-    class Characters {
-      constructor(name, attack, combo) {
-        this._name = name || "soldier";
-        this._attack = attack || 1;
-        this._combo = combo || 1; // 先不做 TODO
-      }
-
-      get name() {
-        return this._name;
-      }
-
-      get attack() {
-        return this._attack;
-      }
-
-      get combo() {
-        return this._combo;
-      }
-    }
-
-    class Player {
-      constructor(name, hp, chessType) {
-        this._name = name || "player";
-        this._hp = hp || 120;
-        this._chessType = chessType; // 不能为空，且一个为1一个为2
-      }
-
-      get name() {
-        return this._name;
-      }
-
-      get hp() {
-        return this._hp;
-      }
-
-      get chessType() {
-        return this._chessType;
-      }
-    }
 
     // 血量为0判断失败 目前不为零已经判断为输了，写法变一下，判断一方血量为0再输。
     // 增加血条变少的动画，渐变 complete
@@ -155,13 +126,14 @@
         tableArr: null,
         tableColNum: 6,
         tableRowNum: 6,
+        tableProp: null,
         lastMove: null,
         undoStack: [],
         player1: {},
         player2: {},
         initialHp: 120,
       },
-      computed: {},
+      computed: { },
       watch: {
         // player1: {
         //     handler(newValue, oldValue) {
@@ -188,22 +160,50 @@
         //     deep: true
         // },
       },
-      created: function () {
+      mounted: function () {
+        this.initDataDOM();
+        this.initCanvas();
         this.initChessDesk();
       },
       methods: {
+        initDataDOM: function() {
+          let tableProp = this.$refs.table.getBoundingClientRect();
+          this.tableProp = tableProp;
+        },
+        initCanvas: function() {
+          const canvas = this.$refs.canvas
+          let context = this.context;
+          context = canvas.getContext('2d');
+          context.lineWidth = 3;
+          context.lineCap='round';
+          context.lineJoin='round';
+          context.strokeStyle='#fff70e';
+          
+
+          this.context = context;
+          
+          
+          // context.beginPath();
+          // context.moveTo(10, 10);
+          // context.lineTo(50, 50);
+          // context.lineTo(100, 10);
+          // context.stroke();
+        },
         initChessDesk: function () {
           let tableArr = createArray(6, 6);
+          let self = this;
           tableArr[2][2].type = 1;
           tableArr[2][3].type = 2;
           tableArr[3][2].type = 2;
           tableArr[3][3].type = 1;
           console.log(tableArr);
-          this.tableArr = tableArr;
-          this.lastMove = 1;
-          this.calculateMovableArea(this.lastMove);
-
-          this.initPlayer();
+          self.tableArr = tableArr;
+          self.lastMove = 1;
+          self.$nextTick(() => {
+            self.calculateMovableArea(self.lastMove);
+            self.initPlayer();
+          });
+          
           // this.pushIntoUndoStack(JSON.parse(JSON.stringify(this.$data)));
         },
         pushIntoUndoStack: function (data) {
@@ -234,9 +234,9 @@
           }
           return "";
         },
-        initChess: function (name, attack, combo) {
-          let soldier = new Characters(name, attack, combo);
-          return soldier;
+        initChess: function () {
+          let arr = [Liubei, Guanyu, Zhangfei];
+          return arr[Math.floor((Math.random()*arr.length))];
         },
         computeAttack: function (nowMoveType, attack) {
           // 还需要改写，加上combo的伤害
@@ -259,7 +259,7 @@
         },
         moveChess: function (row, col) {
           let self = this;
-          let character = self.initChess("soldier", 10, 30); // 每次选择棋子落子实现人物不同
+          let character = self.initChess(); // 每次选择棋子落子实现人物不同
 
           let { type } = self.tableArr[row][col];
           let nowMoveType = self.lastMove;
@@ -280,6 +280,9 @@
             self.reversiChess(row, col, nowMoveType);
             // 计算伤害？在生成人物时？还是在落子后
             self.computeAttack(nowMoveType, character._attack);
+            // 清空画布
+            self.clearCanvas();
+            // 计算新的可落子位置
             self.calculateMovableArea(self.lastMove);
           }
           // self.pushIntoUndoStack(JSON.parse(JSON.stringify(self.$data)));
@@ -349,8 +352,7 @@
             } else if (tableArr[i][col].type === enemyType) {
               continue;
             } else {
-              tableArr[i][col].type = 3;
-              tableArr[i][col].reversal = false;
+              self.movableAreaAction(i, col, { type: 3, reversal: false }, { row, col });
               break;
             }
           }
@@ -364,8 +366,7 @@
             } else if (tableArr[i][col].type === enemyType) {
               continue;
             } else {
-              tableArr[i][col].type = 3;
-              tableArr[i][col].reversal = false;
+              self.movableAreaAction(i, col, { type: 3, reversal: false }, { row, col });
               break;
             }
           }
@@ -380,8 +381,7 @@
             } else if (tableArr[row][j].type === enemyType) {
               continue;
             } else {
-              tableArr[row][j].type = 3;
-              tableArr[row][j].reversal = false;
+              self.movableAreaAction(row, j, { type: 3, reversal: false }, { row, col });
               break;
             }
           }
@@ -395,8 +395,7 @@
             } else if (tableArr[row][j].type === enemyType) {
               continue;
             } else {
-              tableArr[row][j].type = 3;
-              tableArr[row][j].reversal = false;
+              self.movableAreaAction(row, j, { type: 3, reversal: false }, { row, col });
               break;
             }
           }
@@ -411,8 +410,7 @@
             } else if (tableArr[i][j].type === enemyType) {
               continue;
             } else {
-              tableArr[i][j].type = 3;
-              tableArr[i][j].reversal = false;
+              self.movableAreaAction(i, j, { type: 3, reversal: false }, { row, col });
               break;
             }
           }
@@ -431,8 +429,7 @@
             } else if (tableArr[i][j].type === enemyType) {
               continue;
             } else {
-              tableArr[i][j].type = 3;
-              tableArr[i][j].reversal = false;
+              self.movableAreaAction(i, j, { type: 3, reversal: false }, { row, col });
               break;
             }
           }
@@ -451,8 +448,7 @@
             } else if (tableArr[i][j].type === enemyType) {
               continue;
             } else {
-              tableArr[i][j].type = 3;
-              tableArr[i][j].reversal = false;
+              self.movableAreaAction(i, j, { type: 3, reversal: false }, { row, col });
               break;
             }
           }
@@ -471,13 +467,34 @@
             } else if (tableArr[i][j].type === enemyType) {
               continue;
             } else {
-              tableArr[i][j].type = 3;
-              tableArr[i][j].reversal = false;
+              self.movableAreaAction(i, j, { type: 3, reversal: false }, { row, col });
               break;
             }
           }
 
-          this.$forceUpdate();
+          // this.$forceUpdate();
+        },
+        movableAreaAction: function(_row, _col, obj, nowRowCol) {
+          let self = this;
+          let { row, col } = nowRowCol;
+          let tableDOM = this.tableProp;
+          self.setChessTypeAction(_row, _col, obj);
+          // 找到当前的ref
+          let _reftd = self.$refs[`reftd${_row}${_col}`][0];
+          let now_reftd = self.$refs[`reftd${row}${col}`][0];
+          // 获取当前坐标
+          let pos = _reftd.getBoundingClientRect();
+          let now_pos = now_reftd.getBoundingClientRect();
+          // 判断是不是有人物
+          let _character = JSON.stringify(self.tableArr[row][col].character);
+          if(_character !== '{}') {
+            // 如果有，告诉canvas从这里划线，划到现有位置
+            // 计算相对位置
+            self.context.beginPath();
+            self.context.moveTo(pos.left-tableDOM.left+pos.width/2, pos.top-tableDOM.top+pos.height/2);
+            self.context.lineTo(now_pos.left-tableDOM.left+now_pos.width/2, now_pos.top-tableDOM.top+now_pos.height/2);
+            self.context.stroke();
+          }
         },
         reversiChess: function (row, col, chessType) {
           // 当前下子的位置和当前下子的类型
@@ -705,8 +722,13 @@
         },
         handleGameOverOk: function () {
           let self = this;
+          self.clearCanvas();
           self.initChessDesk();
           self.gameOverModalVisible = false;
+        },
+        clearCanvas: function() {
+          let self = this;
+          self.context.clearRect(0, 0, self.$refs.canvas.width, self.$refs.canvas.height);
         },
       },
     });
