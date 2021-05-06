@@ -18,7 +18,7 @@
   </head>
   <body>
     <div id="app">
-      <div class="container">  
+      <div :class="{container: true, threeDimensionsOn: threeDimensionsOn}">
         <div class="player">
           <div
             ref="player1"
@@ -87,6 +87,9 @@
       >
         <p>重新开始吧！</p>
       </a-modal>
+      <div>
+        3D模式 <a-switch @change="on3DChange" checked-children="开" un-checked-children="关"/>
+      </div>
       <!-- <button v-on:click="setChessTypeAction" >翻转</button> -->
     </div>
   </body>
@@ -132,6 +135,7 @@
         player1: {},
         player2: {},
         initialHp: 120,
+        threeDimensionsOn: false,
       },
       computed: { },
       watch: {
@@ -178,16 +182,8 @@
           context.lineCap='round';
           context.lineJoin='round';
           context.strokeStyle='#fff70e';
-          
 
           this.context = context;
-          
-          
-          // context.beginPath();
-          // context.moveTo(10, 10);
-          // context.lineTo(50, 50);
-          // context.lineTo(100, 10);
-          // context.stroke();
         },
         initChessDesk: function () {
           let tableArr = createArray(6, 6);
@@ -490,10 +486,7 @@
           if(_character !== '{}') {
             // 如果有，告诉canvas从这里划线，划到现有位置
             // 计算相对位置
-            self.context.beginPath();
-            self.context.moveTo(pos.left-tableDOM.left+pos.width/2, pos.top-tableDOM.top+pos.height/2);
-            self.context.lineTo(now_pos.left-tableDOM.left+now_pos.width/2, now_pos.top-tableDOM.top+now_pos.height/2);
-            self.context.stroke();
+            self.beginCanvasAnimation(pos, now_pos);
           }
         },
         reversiChess: function (row, col, chessType) {
@@ -726,9 +719,75 @@
           self.initChessDesk();
           self.gameOverModalVisible = false;
         },
+        beginCanvasAnimation: function(pos, now_pos) {
+          let self = this;
+          let ctx = self.context;
+          let tableDOM = self.tableProp;
+          let x1 = pos.left-tableDOM.left+pos.width/2;
+          let y1 = pos.top-tableDOM.top+pos.height/2;
+          // let x2 = pos.left-tableDOM.left+pos.width/2;
+          // let y2 = pos.top-tableDOM.top+pos.height/2;
+          // let x3 = now_pos.left-tableDOM.left+now_pos.width/2;
+          // let y3 = now_pos.top-tableDOM.top+now_pos.height/2;
+          let x2 = now_pos.left-tableDOM.left+now_pos.width/2;
+          let y2 = now_pos.top-tableDOM.top+now_pos.height/2;
+
+          ctx.beginPath();
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+          
+          // const draw = function() {
+          //   let ctx = self.context;
+          //   ctx.clearRect(0, 0, self.$refs.canvas.width, self.$refs.canvas.height);
+          //   ctx.save();
+
+          //   let time = new Date();
+          //   let s = time.getMilliseconds() % 10;
+          //   let c, d;
+          //   c = (x2 - x1) / 4;
+          //   d = (y2 - y1) / 4;
+
+          //   ctx.beginPath();
+          //   ctx.moveTo(x1, y1);
+          //   // if(y1 === y2) { // 横线
+          //   //   ctx.quadraticCurveTo(x1+c,y1+10,x1+c*2,y1);
+          //   //   ctx.quadraticCurveTo(x1+c*3,y1-10,x2,y2);
+          //   // } else if(x1 === x2) { // 竖线
+          //   //   ctx.quadraticCurveTo(x1+10,y1+d,x1,y1+d*2);
+          //   //   ctx.quadraticCurveTo(x1-10,y1+d*3,x1,y2);
+          //   // } else if(x1 > x2 && y1 > y2) { // 左上斜线
+          //   //   ctx.lineTo(x2,y2);
+          //   // } else if(x1 > x2 && y1 < y2) { // 左下斜线
+          //   //   ctx.lineTo(x2,y2);
+          //   // } else if(x1 < x2 && y1 < y2) { // 右下斜线
+          //   //   ctx.quadraticCurveTo(x1+c,y1,x1+c*2,y1+d*2);
+          //   //   ctx.quadraticCurveTo(x1+c*2,y1,x1+c*2,y1+d*2);
+          //   //   ctx.quadraticCurveTo(x1+c*2,y1,x1+c*2,y1+d*2);
+          //   //   ctx.quadraticCurveTo(x1+c*2,y2,x2,y2);
+          //   // } else if(x1 < x2 && y1 > y2) { // 左下斜线
+          //   //   ctx.lineTo(x2,y2);
+          //   // }
+            
+          //   // ctx.moveTo(x1, y1);
+          //   ctx.lineTo(x2,y2);
+          //   ctx.stroke();
+          //   // ctx.save();
+            
+          //   ctx.restore();
+            
+          //   window.requestAnimationFrame(draw);
+          // };
+
+          // window.requestAnimationFrame(draw);
+          
+        },
         clearCanvas: function() {
           let self = this;
           self.context.clearRect(0, 0, self.$refs.canvas.width, self.$refs.canvas.height);
+        },
+        on3DChange: function(checked) {
+          this.threeDimensionsOn = checked;
         },
       },
     });

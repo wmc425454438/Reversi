@@ -1,6 +1,10 @@
+/* 下棋时显示正面，对面的回合再3d效果显示 */
 .container {
-    /* transform: perspective(800px) rotateX(35deg);
-    transition: ease-in-out .5s; */
+    transition: ease-in-out .5s;
+}
+
+.threeDimensionsOn {
+    transform: perspective(800px) rotateX(35deg);
 }
 
 .desk-table {
